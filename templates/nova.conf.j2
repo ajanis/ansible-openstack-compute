@@ -1,0 +1,132 @@
+[DEFAULT]
+use_neutron = True
+firewall_driver = nova.virt.firewall.NoopFirewallDriver
+compute_driver = libvirt.LibvirtDriver
+graceful_shutdown_timeout = 5
+metadata_workers = 10
+osapi_compute_workers = 10
+transport_url = rabbit://{{ openstack_rabbit_user }}:{{ openstack_rabbit_pass }}@{{ openstack_rabbit_host }}/
+logging_exception_prefix = %(asctime)s.%(msecs)03d %(process)d  [-NOVA-] TRACE %(name)s %(instance)s
+logging_default_format_string = %(asctime)s.%(msecs)03d %(process)d %(color)s%(levelname)s %(name)s [-%(color)s] %(instance)s%(color)s%(message)s
+logging_context_format_string = %(color)s%(levelname)s %(name)s [%(global_request_id)s %(request_id)s %(project_name)s %(user_name)s%(color)s] %(instance)s%(color)s%(message)s
+logging_debug_format_suffix = %(asctime)s.%(msecs)03d %(process)d %(levelname)s %(name)s [-NOVA-] %(funcName)s %(pathname)s:%(lineno)d
+instances_path = /x/data/nova/instances
+metadata_listen = 0.0.0.0
+osapi_compute_listen = 0.0.0.0
+rootwrap_config = /etc/nova/rootwrap.conf
+allow_resize_to_same_host = True
+#default_log_levels = oslo.config=DEBUG,amqp=DEBUG,amqplib=DEBUG,sqlalchemy=DEBUG,oslo.messaging=DEBUG
+instance_usage_audit=True
+state_path = /var/lib/nova
+instance_name_template=%(uuid)s
+ram_allocation_ratio= 0.95
+cpu_allocation_ratio= 1.5
+service_down_time= 200
+flat_injected=True
+host = {{ hostvars[inventory_hostname]['ansible_hostname'] }}
+debug = True
+log_file=/var/log/nova/nova-compute.log
+
+# from oslo.messaging
+executor_thread_pool_size= 2048
+rpc_conn_pool_size=  60
+
+# config drive
+force_config_drive=True
+config_drive_format=vfat
+
+default_ephemeral_format = ext3
+vif_plugging_timeout = 300
+vif_plugging_is_fatal = True
+
+use_cow_images = true
+preallocate_images = space
+
+[oslo_messaging_rabbit]
+amqp_durable_queues=True
+rabbit_retry_interval=3
+
+[notifications]
+notify_on_state_change=vm_and_task_state
+
+[keystone_authtoken]
+signing_dir = /var/cache/nova
+cafile = /var/lib/nova/ca-bundle.pem
+project_domain_name = Default
+project_name = service
+user_domain_name = Default
+password = {{ openstack_admin_password }}
+username = compute
+auth_url = http://{{ openstack_auth_host }}/v3
+auth_type = password
+
+[oslo_concurrency]
+lock_path = /var/lock/nova
+
+[vnc]
+enabled = False
+
+[oslo_messaging_notifications]
+transport_url = rabbit://{{ openstack_rabbit_user }}:{{ openstack_rabbit_pass }}@{{ openstack_rabbit_host }}/
+driver = messagingv2
+topics = notifications
+
+[glance]
+api_servers = http://{{ openstack_glance_host }}
+
+
+[libvirt]
+virt_type = kvm
+
+#-----In case compute node is assigned multiple IPs, use HOSTNAME
+live_migration_inbound_addr = {{ hostvars[inventory_hostname]['ansible_hostname'] }}
+#-----Uncomment this option after valid SSL certificates are set up
+#live_migration_scheme = tls
+#-----Remove this option entirely after valid SSL certificates are set up
+live_migration_uri = "qemu+tls://%s/system?no_verify=1"
+live_migration_bandwidth = 0
+live_migration_permit_auto_converge = True
+live_migration_permit_post_copy = False
+live_migration_downtime = 1500
+live_migration_downtime_delay = 3
+live_migration_downtime_steps = 5
+max_concurrent_live_migrations = 0
+live_migration_tunnelled = False
+#------To increase performace
+#use_virtio_for_bridges = True
+#hw_disk_discard = ignore
+#disk_cachemodes = None
+
+[spice]
+agent_enabled = True
+enabled = True
+html5proxy_base_url = http://{{ openstack_vnc_host }}/spice_auto.html
+server_listen = 0.0.0.0
+server_proxyclient_address = {{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}
+html5proxy_port = 80
+
+[placement]
+os_region_name = {{ openstack_region_id }}
+project_domain_name = Default
+project_name = service
+user_domain_name = Default
+password = {{ openstack_admin_password }}
+username = placement
+auth_url = http://{{ openstack_auth_host }}/v3
+auth_type = password
+
+[neutron]
+service_metadata_proxy = True
+url = http://{{ openstack_neutron_host }}
+region_name = {{ openstack_region_id }}
+auth_strategy = keystone
+project_domain_name = Default
+project_name = service
+user_domain_name = Default
+password = {{ openstack_admin_password }}
+username = neutron
+auth_url = http://{{ openstack_auth_host }}/v3
+auth_type = password
+
+[workarounds]
+disable_group_policy_check_upcall = True

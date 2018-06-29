@@ -1,0 +1,107 @@
+---
+
+- name: install prereq packages
+  package:
+    name: "{{ item }}"
+    state: present
+  with_items: "{{ openstack_package_prerequisites }}"
+
+- name: Set up users and service directories
+  include_tasks: service-setup.yml
+
+- name: Add nova user to libvirtd group
+  user:
+    name: nova
+    groups: libvirtd
+    append: yes
+
+- name: Deploy /etc/libvirt/libvirtd.conf
+  copy:
+    src: roles/openstack/files/libvirtd.conf
+    dest: /etc/libvirt/libvirtd.conf
+  notify: restart libvirt-bin
+
+- name: Enable libvirt listener
+  lineinfile:
+    path: /etc/default/libvirt-bin
+    regexp: '^.*libvirtd_opts=.*$'
+    line: libvirtd_opts="--listen"
+    state: present
+  notify: restart libvirt-bin
+
+- name: Copy custom qemu.conf
+  copy:
+    src: qemu.conf
+    dest: /etc/libvirt/qemu.conf
+    owner: root
+    group: root
+    mode: 0644
+  notify: restart libvirt-bin
+
+- name: create libvirt ssl directories
+  file:
+    path: "{{ item }}"
+    state: directory
+  with_items:
+    - /etc/pki/libvirt
+    - /etc/pki/libvirt/private
+    - /etc/pki/CA
+
+- name: copy libvirt ssl cert
+  copy:
+    dest: /etc/pki/libvirt/servercert.pem
+    content: "{{ libvirt_server_cert }}"
+  notify: restart libvirt-bin
+
+- name: copy libvirt ssl key
+  copy:
+    dest: /etc/pki/libvirt/private/serverkey.pem
+    content: "{{ vault_libvirt_server_key }}"
+    mode: 0400
+  notify: restart libvirt-bin
+
+- name: copy libvirt ca cert
+  copy:
+    dest: /etc/pki/CA/cacert.pem
+    content: "{{ libvirt_server_ca }}"
+  notify: restart libvirt-bin
+
+- name: Create nova instance directory
+  file:
+    path: /x/data/nova/instances
+    state: directory
+    owner: nova
+    group: nova
+    mode: 0777
+
+- name: Set up openstack service sudo privileges
+  include_tasks: service-sudoers.yml
+
+- name: Set up service logrotate configs
+  include_tasks: service-logrotate.yml
+
+- name: Install services from github source
+  include_tasks: service-source-install.yml
+
+- name: Import startup scripts
+  include_tasks: service-startup-scripts.yml
+
+- name: Install service config files
+  include_tasks: service-configs.yml
+
+- name: Check for default libvirt network
+  shell: virsh net-list | grep default
+  register: default_net_exists
+  failed_when: default_net_exists.rc == "2"
+  changed_when: false
+
+- name: Remove default libvirt network
+  command: virsh net-destroy default
+  when: default_net_exists.rc == "0"
+  ignore_failed: true
+
+- name: Undefine default libvirt network
+  command: virsh net-undefine default
+  when: default_net_exists.rc == "0"
+  ignore_failed: true
+

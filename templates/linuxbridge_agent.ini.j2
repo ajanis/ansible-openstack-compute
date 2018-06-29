@@ -1,0 +1,21 @@
+
+[DEFAULT]
+
+# Linux bridge agent physical interface mappings
+[linux_bridge]
+physical_interface_mappings = provider:{{ provider_interface }}
+
+# Linux bridge agent VXLAN networks
+[vxlan]
+enable_vxlan = false
+
+
+# Agent
+[agent]
+polling_interval = 10
+
+# Security groups
+[securitygroup]
+firewall_driver = 
+enable_security_group = False
+enable_ipset = True
